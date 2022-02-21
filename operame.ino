@@ -158,7 +158,7 @@ void display_ppm(int ppm) {
         fg = TFT_BLACK;
         bg = TFT_YELLOW;
     } else {
-        fg = TFT_PURPLE;
+        fg = TFT_GREEN;
         bg = TFT_BLACK;
     }
 
@@ -177,7 +177,7 @@ void display_ppm_t_h(int ppm, float t, float h) {
         fg = TFT_BLACK;
         bg = TFT_YELLOW;
     } else {
-        fg = TFT_PURPLE;
+        fg = TFT_GREEN;
         bg = TFT_BLACK;
     }
 
