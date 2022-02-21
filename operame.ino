@@ -60,6 +60,8 @@ String          mqtt_template;
 bool		mqtt_user_pass_enabled;
 String		mqtt_username;
 String		mqtt_password;
+String      mqtt_lokaal;
+String      mqtt_naam;
 bool		mqtt_temp_hum_enabled;
 String          mqtt_topic_temperature;
 bool 	        mqtt_template_temp_hum_enabled;
@@ -82,7 +84,7 @@ bool            rest_enabled;
 
 void retain(const String& topic, const String& message) {
     Serial.printf("%s %s\n", topic.c_str(), message.c_str());
-    mqtt.publish(topic, message, true, 0);
+    mqtt.publish(mqtt_lokaal + "/" + topic, message, true, 0);
 }
 
 void clear_sprite(int bg = TFT_BLACK) {
@@ -156,7 +158,7 @@ void display_ppm(int ppm) {
         fg = TFT_BLACK;
         bg = TFT_YELLOW;
     } else {
-        fg = TFT_GREEN;
+        fg = TFT_PURPLE;
         bg = TFT_BLACK;
     }
 
@@ -175,7 +177,7 @@ void display_ppm_t_h(int ppm, float t, float h) {
         fg = TFT_BLACK;
         bg = TFT_YELLOW;
     } else {
-        fg = TFT_GREEN;
+        fg = TFT_PURPLE;
         bg = TFT_BLACK;
     }
 
@@ -469,6 +471,8 @@ void setup() {
     co2_blink     = WiFiSettings.integer("operame_co2_blink",   800, 5000, 800, T.config_co2_blink);
 
     WiFiSettings.heading("MQTT");
+    mqtt_lokaal = WiFiSettings.string("lokaal", 64, "", T.config_mqtt_lokaal);
+    mqtt_naam = WiFiSettings.string("naam", 64, "", T.config_mqtt_naam);
     mqtt_enabled  = WiFiSettings.checkbox("operame_mqtt", false, T.config_mqtt) && wifi_enabled;
     String server = WiFiSettings.string("mqtt_server", 64, "", T.config_mqtt_server);
     int port      = WiFiSettings.integer("mqtt_port", 0, 65535, 1883, T.config_mqtt_port);
@@ -562,7 +566,7 @@ void loop() {
     static float h;
     static float t;
 
-    every(60000) {
+    every(1200) {
         // Read CO2, humidity and temperature 
         co2 = get_co2();
         h = dht.readHumidity();
@@ -601,11 +605,12 @@ void loop() {
             connect_mqtt();
 	    //CO2
 	    String message;
-        const size_t capacity = JSON_OBJECT_SIZE(3);
+        const size_t capacity = JSON_OBJECT_SIZE(4);
         DynamicJsonDocument doc(capacity);
         doc["variable"] = "CO2";
 	    doc["value"] = co2;
 	    doc["unit"] = "ppm";
+        doc["sensor_id"] = 2;
  	    serializeJson(doc, message);
 	    retain(mqtt_topic, message);
 

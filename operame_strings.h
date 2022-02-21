@@ -35,6 +35,8 @@ struct Texts {
 	*config_mqtt_template_hum,
 	*config_mqtt_user_pass,
 	*config_mqtt_username,
+    *config_mqtt_lokaal,
+    *config_mqtt_naam,
 	*config_mqtt_password,
         *config_rest,
         *config_rest_domain,
