@@ -71,6 +71,7 @@ String		mqtt_template_hum;
 bool            add_units;
 bool            wifi_enabled;
 bool            mqtt_enabled;
+bool            mqtt_new;
 int             max_failures;
 
 // REST configuration via WiFiSettings
@@ -84,7 +85,7 @@ bool            rest_enabled;
 
 void retain(const String& topic, const String& message) {
     Serial.printf("%s %s\n", topic.c_str(), message.c_str());
-    mqtt.publish(mqtt_lokaal + "/" + topic, message, true, 0);
+    mqtt.publish( topic, message, true, 0);
 }
 
 void clear_sprite(int bg = TFT_BLACK) {
@@ -158,7 +159,7 @@ void display_ppm(int ppm) {
         fg = TFT_BLACK;
         bg = TFT_YELLOW;
     } else {
-        fg = TFT_PURPLE;
+        fg = TFT_GREEN;
         bg = TFT_BLACK;
     }
 
@@ -479,9 +480,11 @@ void setup() {
     max_failures  = WiFiSettings.integer("operame_max_failures", 0, 1000, 10, T.config_max_failures);
     mqtt_topic  = WiFiSettings.string("operame_mqtt_topic", WiFiSettings.hostname, T.config_mqtt_topic);
     mqtt_interval = 1000UL * WiFiSettings.integer("operame_mqtt_interval", 10, 3600, 60, T.config_mqtt_interval);
+    mqtt_new  = WiFiSettings.checkbox("operame_mqtt_new", true, T.config_mqtt_new);
 //    mqtt_template_enabled = WiFiSettings.checkbox("operame_mqtt_template_enabled", false, T.config_mqtt_template_enabled);
 //    mqtt_template = WiFiSettings.string("operame_mqtt_template", "{} PPM", T.config_mqtt_template);
 //    WiFiSettings.info(T.config_template_info);
+
     mqtt_temp_hum_enabled = WiFiSettings.checkbox("operame_mqtt_temp_hum", false, T.config_mqtt_temp_hum);
     mqtt_topic_temperature  = WiFiSettings.string("operame_mqtt_topic_temperature", WiFiSettings.hostname + "/t", T.config_mqtt_topic_temperature);
     mqtt_topic_humidity  = WiFiSettings.string("operame_mqtt_topic_humidity", WiFiSettings.hostname + "/h", T.config_mqtt_topic_humidity);
@@ -502,8 +505,11 @@ void setup() {
     bool rest_cert_enabled  = WiFiSettings.checkbox("operame_rest_cert", false, T.config_rest_cert_enabled);
     rest_cert        = WiFiSettings.string("rest_cert", 6000, "", T.config_rest_cert);
     rest_cert.replace("\\n", "\n");
+    
 
     WiFiSettings.onConnect = [] {
+        display_big(WiFiSettings.hostname, TFT_BLUE);
+        delay(2000); 
         display_big(T.connecting, TFT_BLUE);
         check_portalbutton();
         return 50;
@@ -535,12 +541,29 @@ void setup() {
         }
 
         if (ota_enabled) ArduinoOTA.handle();
+
+        
         if (button(pin_portalbutton)) ESP.restart();
     };
 
     if (wifi_enabled) WiFiSettings.connect(false, 15);
 
-    if (mqtt_enabled) mqtt.begin(server.c_str(), port, wificlient);
+    if (mqtt_enabled){
+        mqtt.begin(server.c_str(), port, wificlient);
+        if (mqtt_new){
+            mqtt.begin(server.c_str(), port, wificlient);
+
+            mqtt.loop();
+            connect_mqtt();
+            String message;
+            const size_t capacity = JSON_OBJECT_SIZE(1);
+            DynamicJsonDocument doc(capacity);
+            doc["value"] = true;
+            serializeJson(doc, message);
+            retain("new/" + WiFiSettings.hostname, message);
+        }
+    }
+
 
     if (rest_cert_enabled) wificlientsecure.setCACert(rest_cert.c_str());
 
@@ -565,82 +588,94 @@ void loop() {
     static int co2;
     static float h;
     static float t;
-
+    if(mqtt_new){
+        display_lines(T.setup_not_done, TFT_RED);
+    } 
     every(1200) {
         // Read CO2, humidity and temperature 
-        co2 = get_co2();
-        h = dht.readHumidity();
-        t = dht.readTemperature();
-        // Print data to serial port
-        Serial.print(co2);
-        Serial.print(",");
-        Serial.print(t);
-        Serial.print(",");
-        Serial.print(h);
-        Serial.println();
+        if(mqtt_new = false){
+            co2 = get_co2();
+            h = dht.readHumidity();
+            t = dht.readTemperature();
+            // Print data to serial port
+            Serial.print(co2);
+            Serial.print(",");
+            Serial.print(t);
+            Serial.print(",");
+            Serial.print(h);
+            Serial.println();
+        }
     }
 
     every(50) {
-        if (co2 < 0) {
-            display_big(T.error_sensor, TFT_RED);
-        } else if (co2 == 0) {
-            display_big(T.wait);
-        } else {
-            // Check if there is a humidity sensor
-            if (isnan(h) || isnan(t)) {
-                // Only display CO2 value (the old way)
-                // some MH-Z19's go to 10000 but the display has space for 4 digits
-                display_ppm(co2 > 9999 ? 9999 : co2);
+        if(mqtt_new = false){
+            if (co2 < 0) {
+                display_big(T.error_sensor, TFT_RED);
+            } else if (co2 == 0) {
+                display_big(T.wait);
             } else {
-                // Display also humidity and temperature
-                display_ppm_t_h(co2 > 9999 ? 9999 : co2, t, h);
+                // Check if there is a humidity sensor
+                if (isnan(h) || isnan(t)) {
+                    // Only display CO2 value (the old way)
+                    // some MH-Z19's go to 10000 but the display has space for 4 digits
+                    display_ppm(co2 > 9999 ? 9999 : co2);
+                } else {
+                    // Display also humidity and temperature
+                    display_ppm_t_h(co2 > 9999 ? 9999 : co2, t, h);
+                }
             }
         }
     }
 
     if (mqtt_enabled) {
-        mqtt.loop();
-        every(mqtt_interval) {
-            if (co2 <= 0) break;
-            connect_mqtt();
-	    //CO2
-	    String message;
-        const size_t capacity = JSON_OBJECT_SIZE(4);
-        DynamicJsonDocument doc(capacity);
-        doc["variable"] = "CO2";
-	    doc["value"] = co2;
-	    doc["unit"] = "ppm";
-        doc["sensor_id"] = 2;
- 	    serializeJson(doc, message);
-	    retain(mqtt_topic, message);
+        if (mqtt_new){
+            mqtt.loop();
+            every(mqtt_interval) {
+                if (co2 <= 0) break;
+                connect_mqtt();
+            //CO2
+            String message;
+            const size_t capacity = JSON_OBJECT_SIZE(5);
+            DynamicJsonDocument doc(capacity);
+            doc["variable"] = "CO2";
+            doc["value"] = co2;
+            doc["unit"] = "ppm";
+            doc["sensor_id"] = 2;
+            doc["lokaal"] = mqtt_lokaal;
+            serializeJson(doc, message);
+            retain(mqtt_lokaal + "/" + mqtt_topic, message);
 
-	    if(mqtt_temp_hum_enabled) {
-	    	//temperature
-	    	if(!isnan(t)) {
-                String message;
-                const size_t capacity = JSON_OBJECT_SIZE(3);
-                DynamicJsonDocument doc(capacity);
-                doc["variable"] = "temperature";
-                doc["value"] = t;
-                doc["unit"] = "C";
-                serializeJson(doc, message);
-                retain(mqtt_topic_temperature, message);
-	    	}
+            if(mqtt_temp_hum_enabled) {
+                //temperature
+                if(!isnan(t)) {
+                    String message;
+                    const size_t capacity = JSON_OBJECT_SIZE(3);
+                    DynamicJsonDocument doc(capacity);
+                    doc["variable"] = "temperature";
+                    doc["value"] = t;
+                    doc["unit"] = "C";
+                    serializeJson(doc, message);
+                    retain(mqtt_lokaal + "/" + mqtt_topic_temperature, message);
+                }
 
-	    	//humidity
-            if(!isnan(h)) {
-                String message;
-                const size_t capacity = JSON_OBJECT_SIZE(3);
-                DynamicJsonDocument doc(capacity);
-                doc["variable"] = "humidity";
-                doc["value"] = h;
-                doc["unit"] = "%R.H.";
-                serializeJson(doc, message);
-                retain(mqtt_topic_humidity, message);
+                //humidity
+                if(!isnan(h)) {
+                    String message;
+                    const size_t capacity = JSON_OBJECT_SIZE(3);
+                    DynamicJsonDocument doc(capacity);
+                    doc["variable"] = "humidity";
+                    doc["value"] = h;
+                    doc["unit"] = "%R.H.";
+                    serializeJson(doc, message);
+                    retain(mqtt_lokaal + "/" + mqtt_topic_humidity, message);
+                }
             }
-	    }	 
+        }
+        if(mqtt_new){
+            display_big("Stel " + WiFiSettings.hostname + " eerst in voor je waardes krijgt", TFT_RED);
+        } 
 	}
-    }
+}
 
     if (rest_enabled) {
         while(wificlientsecure.available()){

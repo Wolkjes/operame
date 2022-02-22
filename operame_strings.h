@@ -19,6 +19,7 @@ struct Texts {
         *config_co2_critical,
         *config_co2_blink,
         *config_mqtt,
+        *config_mqtt_new,
         *config_mqtt_server,
         *config_mqtt_port,
         *config_max_failures,
@@ -53,6 +54,7 @@ struct Texts {
     std::list<String> first_run;
     std::list<String> calibration;
     std::list<String> calibrating;
+    std::list<String> setup_not_done;
 };
 
 std::map<const String, const String> languages {
@@ -86,6 +88,7 @@ bool select(Texts& T, String language) {
         T.config_co2_critical = "Red from [ppm]";
         T.config_co2_blink = "Blink from [ppm]";
         T.config_mqtt = "Publish measurements via the MQTT protocol";
+        T.config_mqtt_new = "New sensor";
         T.config_mqtt_server = "Broker";  // probably should not be translated
         T.config_mqtt_port = "Broker TCP port";
         T.config_max_failures = "Number of failed connections before automatic restart";
@@ -152,6 +155,13 @@ bool select(Texts& T, String language) {
             "CO2 level to be",
             "400 PPM."
         };
+        
+        T.setup_not_done = {
+            "configure",
+            WiFiSettings.hostname,
+            "first before",
+            "receiving values"
+        };
         return true;
     }
 
@@ -170,6 +180,7 @@ bool select(Texts& T, String language) {
         T.config_co2_critical = "Rood vanaf [ppm]";
         T.config_co2_blink = "Knipperen vanaf [ppm]";
         T.config_mqtt = "Metingen via het MQTT-protocol versturen";
+        T.config_mqtt_new = "Nieuwe sensor";
         T.config_mqtt_server = "Broker";  // zo heet dat in MQTT
         T.config_mqtt_port = "Broker TCP-poort";
         T.config_max_failures = "Aantal verbindingsfouten voor automatische herstart";
@@ -237,6 +248,12 @@ bool select(Texts& T, String language) {
             "niveau wordt",
             "aangenomen",
             "400 PPM te zijn."
+        };
+        T.setup_not_done = {
+            "stel",
+            WiFiSettings.hostname,
+            "eerst in voordat",
+            "je waardes krijgt"
         };
         return true;
     }
