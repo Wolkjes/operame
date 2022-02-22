@@ -3,4 +3,4 @@ platformio-*.ini
 .vscode
 
 # default port is different on mac
-platformio.ini
+./platformio.ini
