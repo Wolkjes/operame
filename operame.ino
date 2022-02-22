@@ -25,6 +25,8 @@
 //#define DHTTYPE    DHT11     // DHT 11
 #define DHTTYPE    DHT22     // DHT 22 (AM2302)
 //#define DHTTYPE    DHT21     // DHT 21 (AM2301)
+#include <iomanip>
+
 
 OperameLanguage::Texts T;
 
@@ -74,6 +76,7 @@ bool            mqtt_enabled;
 bool            mqtt_new;
 int             max_failures;
 
+
 // REST configuration via WiFiSettings
 unsigned long   rest_interval;
 int             rest_port;
@@ -82,6 +85,13 @@ String          rest_uri;
 String          rest_resource_id;
 String          rest_cert;
 bool            rest_enabled;
+
+int msgReceived = 0;
+String rcvdPayload;
+char sndPayloadOff[512];
+char sndPayloadOn[512];
+
+void messageHandler(String &topic, String &payload);
 
 void retain(const String& topic, const String& message) {
     Serial.printf("%s %s\n", topic.c_str(), message.c_str());
@@ -552,7 +562,7 @@ void setup() {
         mqtt.begin(server.c_str(), port, wificlient);
         if (mqtt_new){
             mqtt.begin(server.c_str(), port, wificlient);
-
+            mqtt.onMessage(messageHandler);
             mqtt.loop();
             connect_mqtt();
             String message;
@@ -561,7 +571,9 @@ void setup() {
             doc["value"] = true;
             serializeJson(doc, message);
             retain("new/" + WiFiSettings.hostname, message);
+            
         }
+        mqtt.subscribe("new/" + WiFiSettings.hostname);
     }
 
 
@@ -582,18 +594,40 @@ void post_rest_message(DynamicJsonDocument message, Stream& stream) {
     stream.println();
 }
 
-#define every(t) for (static unsigned long _lasttime; (unsigned long)((unsigned long)millis() - _lasttime) >= (t); _lasttime = millis())
 
+void messageHandler(String &topic, String &payload) {
+    msgReceived = 1;
+    rcvdPayload = payload;
+}
+
+#define every(t) for (static unsigned long _lasttime; (unsigned long)((unsigned long)millis() - _lasttime) >= (t); _lasttime = millis())
+bool checkbool(String s){
+    if(s == "false"){
+        return false;
+    }else{
+        return true;
+    }
+}
 void loop() {
     static int co2;
     static float h;
     static float t;
+    if(msgReceived == 1){
+        delay(100);
+        msgReceived = 0;
+        if( rcvdPayload.substring(2,7) = "value"){
+            mqtt_new = checkbool(rcvdPayload.substring(9,14));
+            display_big( rcvdPayload.substring(2,7),TFT_GREEN);
+        }
+        
+        delay(5000);
+    }
     if(mqtt_new){
         display_lines(T.setup_not_done, TFT_RED);
     } 
     every(1200) {
         // Read CO2, humidity and temperature 
-        if(mqtt_new = false){
+        if(mqtt_new == false){
             co2 = get_co2();
             h = dht.readHumidity();
             t = dht.readTemperature();
@@ -608,7 +642,7 @@ void loop() {
     }
 
     every(50) {
-        if(mqtt_new = false){
+        if(mqtt_new == false){
             if (co2 < 0) {
                 display_big(T.error_sensor, TFT_RED);
             } else if (co2 == 0) {
@@ -671,9 +705,6 @@ void loop() {
                 }
             }
         }
-        if(mqtt_new){
-            display_big("Stel " + WiFiSettings.hostname + " eerst in voor je waardes krijgt", TFT_RED);
-        } 
 	}
 }
 
