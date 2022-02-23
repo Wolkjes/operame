@@ -561,17 +561,18 @@ void setup() {
 
     if (mqtt_enabled){
         mqtt.begin(server.c_str(), port, wificlient);
-        connect_mqtt();
-        
-        mqtt.loop();
-        mqtt.onMessage(messageHandler);
         if (mqtt_new){
+            mqtt.begin(server.c_str(), port, wificlient);
+            mqtt.onMessage(messageHandler);
+            mqtt.loop();
+            connect_mqtt();
             String message;
             const size_t capacity = JSON_OBJECT_SIZE(1);
             DynamicJsonDocument doc(capacity);
-            doc["value"] = mqtt_new;
+            doc["value"] = true;
             serializeJson(doc, message);
             retain("new/" + WiFiSettings.hostname, message);
+
         }
         mqtt.subscribe("new/" + WiFiSettings.hostname);
         
