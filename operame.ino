@@ -64,6 +64,7 @@ bool		mqtt_user_pass_enabled;
 String		mqtt_username;
 String		mqtt_password;
 String      mqtt_lokaal;
+String      mqtt_campus;
 String      mqtt_naam;
 bool		mqtt_temp_hum_enabled;
 String          mqtt_topic_temperature;
@@ -519,8 +520,6 @@ void setup() {
     
 
     WiFiSettings.onConnect = [] {
-        display_big(WiFiSettings.hostname, TFT_BLUE);
-        delay(2000); 
         display_big(T.connecting, TFT_BLUE);
         check_portalbutton();
         return 50;
@@ -540,6 +539,7 @@ void setup() {
     };
     WiFiSettings.onConfigSaved = [] {
         portal_phase = 3;
+        
     };
     WiFiSettings.onPortalWaitLoop = [] {
         if (WiFi.softAPgetStationNum() == 0) portal_phase = 0;
@@ -561,14 +561,14 @@ void setup() {
 
     if (mqtt_enabled){
         mqtt.begin(server.c_str(), port, wificlient);
+        mqtt.onMessage(messageHandler);
         if (mqtt_new){
-            mqtt.begin(server.c_str(), port, wificlient);
-            mqtt.onMessage(messageHandler);
             mqtt.loop();
             connect_mqtt();
             String message;
-            const size_t capacity = JSON_OBJECT_SIZE(1);
+            const size_t capacity = JSON_OBJECT_SIZE(2);
             DynamicJsonDocument doc(capacity);
+            doc["key"] = "new";
             doc["value"] = true;
             serializeJson(doc, message);
             retain("new/" + WiFiSettings.hostname, message);
@@ -611,74 +611,43 @@ bool checkbool(String s){
     }
 }
 
-DynamicJsonDocument StringToJSONDocParser(String jsondata){
-    String jsonCounter = jsondata;
-    int teller = 1;
-
-    //kijk hoeveel variables er in de json zitten 
-    while(jsonCounter.indexOf(",")>-1){
-        teller++;
-        jsonCounter = jsonCounter.substring(jsonCounter.indexOf(",")+1);
-    }
-
-    //initialize JSONDocument met het aantal data
-    const size_t capacity = JSON_OBJECT_SIZE(2);
-    DynamicJsonDocument doc(capacity);
-
-    String cutted;
-    String indexname;
-    
-    //zet alle data met de juiste key value pairing in de DynamicJSONdoc
-    for(int i = 0; i < teller; i++){
-        cutted = jsondata.substring(jsondata.indexOf('\"')+1);
-        indexname = cutted.substring(0, cutted.indexOf('\"'));
-        cutted = cutted.substring(cutted.indexOf(":")+1);
-        String full_value = "";
-        if(cutted.indexOf(",") < cutted.indexOf("}") && cutted.indexOf(",") != -1 ){
-            full_value = cutted.substring(0,cutted.indexOf(","));
-            jsondata = cutted.substring(cutted.indexOf(",")+1);
-        }else{
-            full_value = cutted.substring(0,cutted.indexOf("}"));
-        }
-        indexname.trim();
-        full_value.trim();
-
-        if(full_value == "true" || full_value == "false"){
-            bool trueOrFalse = checkbool(full_value);
-            doc[indexname] = trueOrFalse;
-        }else{
-            doc[indexname] = full_value;
-        }
-    }
-
-    jsonCounter = teller;
-    return doc;
-}
 
 
 void loop() {
     static int co2;
     static float h;
     static float t;
+    mqtt.onMessage(messageHandler);
     if(msgReceived == 1){
         delay(100);
         msgReceived = 0;
-        display_big("ok",TFT_GREEN);
+
+        DynamicJsonDocument test(1024);
+        deserializeJson(test, rcvdPayload);
+        String keyString = test["key"];
+        display_big(keyString , TFT_BLUE);
         delay(2000);
-        DynamicJsonDocument document = StringToJSONDocParser(rcvdPayload);
+        if(keyString == "new"){
+            String stringwaarde = test["value"];
+            bool booleanwaarde = checkbool(stringwaarde);
+            mqtt_new = booleanwaarde;
+            String lokaalnaam = test["lokaal"];
+            mqtt_lokaal = lokaalnaam;
+            String campusnaam = test["campus"];
+            mqtt_campus = campusnaam;
+        };
+
         
-        mqtt_new = document["value"];
-            
-
-
-
     }
+
+    delay(100);
+
     if(mqtt_new){
         display_lines(T.setup_not_done, TFT_RED);
-    } 
-    every(1200) {
-        if (mqtt_new == false){
-        // Read CO2, humidity and temperature 
+    }
+    if(mqtt_new == false){ 
+        every(1200) {
+            // Read CO2, humidity and temperature 
             co2 = get_co2();
             h = dht.readHumidity();
             t = dht.readTemperature();
@@ -691,9 +660,8 @@ void loop() {
             Serial.println();
         }
     }
-
-    every(50) {
-        if (mqtt_new == false){
+    if(mqtt_new == false){
+        every(50) {
             if (co2 < 0) {
                 display_big(T.error_sensor, TFT_RED);
             } else if (co2 == 0) {
@@ -711,10 +679,8 @@ void loop() {
             }
         }
     }
-
     if (mqtt_enabled) {
         if (mqtt_new == false){
-            mqtt.loop();
             every(mqtt_interval) {
                 if (co2 <= 0) break;
                 connect_mqtt();
@@ -757,6 +723,7 @@ void loop() {
             }
         }
 	}
+    mqtt.loop();
 }
 
     if (rest_enabled) {
