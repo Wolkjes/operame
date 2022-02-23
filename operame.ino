@@ -14,7 +14,6 @@
 #include <operame_strings.h>
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
-#define NULL __null
 //#include <DHT_U.h>
 #include "Stream.h"
 
@@ -492,7 +491,7 @@ void setup() {
     max_failures  = WiFiSettings.integer("operame_max_failures", 0, 1000, 10, T.config_max_failures);
     mqtt_topic  = WiFiSettings.string("operame_mqtt_topic", WiFiSettings.hostname, T.config_mqtt_topic);
     mqtt_interval = 1000UL * WiFiSettings.integer("operame_mqtt_interval", 10, 3600, 60, T.config_mqtt_interval);
-    mqtt_new  = WiFiSettings.checkbox("operame_mqtt_new", false, T.config_mqtt_new);
+    mqtt_new  = WiFiSettings.checkbox("operame_mqtt_new", true, T.config_mqtt_new);
 //    mqtt_template_enabled = WiFiSettings.checkbox("operame_mqtt_template_enabled", false, T.config_mqtt_template_enabled);
 //    mqtt_template = WiFiSettings.string("operame_mqtt_template", "{} PPM", T.config_mqtt_template);
 //    WiFiSettings.info(T.config_template_info);
@@ -572,10 +571,9 @@ void setup() {
             doc["value"] = true;
             serializeJson(doc, message);
             retain("new/" + WiFiSettings.hostname, message);
-
+            
         }
         mqtt.subscribe("new/" + WiFiSettings.hostname);
-        
     }
 
 
@@ -636,8 +634,6 @@ void loop() {
             String campusnaam = test["campus"];
             mqtt_campus = campusnaam;
         };
-
-        
     }
 
     delay(100);
