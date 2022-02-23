@@ -63,6 +63,7 @@ bool		mqtt_user_pass_enabled;
 String		mqtt_username;
 String		mqtt_password;
 String      mqtt_lokaal;
+String      mqtt_campus;
 String      mqtt_naam;
 bool		mqtt_temp_hum_enabled;
 String          mqtt_topic_temperature;
@@ -518,8 +519,6 @@ void setup() {
     
 
     WiFiSettings.onConnect = [] {
-        display_big(WiFiSettings.hostname, TFT_BLUE);
-        delay(2000); 
         display_big(T.connecting, TFT_BLUE);
         check_portalbutton();
         return 50;
@@ -539,6 +538,7 @@ void setup() {
     };
     WiFiSettings.onConfigSaved = [] {
         portal_phase = 3;
+        
     };
     WiFiSettings.onPortalWaitLoop = [] {
         if (WiFi.softAPgetStationNum() == 0) portal_phase = 0;
@@ -560,14 +560,14 @@ void setup() {
 
     if (mqtt_enabled){
         mqtt.begin(server.c_str(), port, wificlient);
+        mqtt.onMessage(messageHandler);
         if (mqtt_new){
-            mqtt.begin(server.c_str(), port, wificlient);
-            mqtt.onMessage(messageHandler);
             mqtt.loop();
             connect_mqtt();
             String message;
-            const size_t capacity = JSON_OBJECT_SIZE(1);
+            const size_t capacity = JSON_OBJECT_SIZE(2);
             DynamicJsonDocument doc(capacity);
+            doc["key"] = "new";
             doc["value"] = true;
             serializeJson(doc, message);
             retain("new/" + WiFiSettings.hostname, message);
@@ -608,26 +608,44 @@ bool checkbool(String s){
         return true;
     }
 }
+
+
+
 void loop() {
     static int co2;
     static float h;
     static float t;
+    mqtt.onMessage(messageHandler);
     if(msgReceived == 1){
         delay(100);
         msgReceived = 0;
-        if( rcvdPayload.substring(2,7) = "value"){
-            mqtt_new = checkbool(rcvdPayload.substring(9,14));
-            display_big( rcvdPayload.substring(2,7),TFT_GREEN);
-        }
+
+        DynamicJsonDocument test(1024);
+        deserializeJson(test, rcvdPayload);
+        String keyString = test["key"];
+        display_big(keyString , TFT_BLUE);
+        delay(2000);
+        if(keyString == "new"){
+            String stringwaarde = test["value"];
+            bool booleanwaarde = checkbool(stringwaarde);
+            mqtt_new = booleanwaarde;
+            String lokaalnaam = test["lokaal"];
+            mqtt_lokaal = lokaalnaam;
+            String campusnaam = test["campus"];
+            mqtt_campus = campusnaam;
+        };
+
         
-        delay(5000);
     }
+
+    delay(100);
+
     if(mqtt_new){
         display_lines(T.setup_not_done, TFT_RED);
-    } 
-    every(1200) {
-        // Read CO2, humidity and temperature 
-        if(mqtt_new == false){
+    }
+    if(mqtt_new == false){ 
+        every(1200) {
+            // Read CO2, humidity and temperature 
             co2 = get_co2();
             h = dht.readHumidity();
             t = dht.readTemperature();
@@ -640,9 +658,8 @@ void loop() {
             Serial.println();
         }
     }
-
-    every(50) {
-        if(mqtt_new == false){
+    if(mqtt_new == false){
+        every(50) {
             if (co2 < 0) {
                 display_big(T.error_sensor, TFT_RED);
             } else if (co2 == 0) {
@@ -660,10 +677,8 @@ void loop() {
             }
         }
     }
-
     if (mqtt_enabled) {
-        if (mqtt_new){
-            mqtt.loop();
+        if (mqtt_new == false){
             every(mqtt_interval) {
                 if (co2 <= 0) break;
                 connect_mqtt();
@@ -706,6 +721,7 @@ void loop() {
             }
         }
 	}
+    mqtt.loop();
 }
 
     if (rest_enabled) {
