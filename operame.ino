@@ -14,6 +14,7 @@
 #include <operame_strings.h>
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
+#define NULL __null
 //#include <DHT_U.h>
 #include "Stream.h"
 
@@ -490,7 +491,7 @@ void setup() {
     max_failures  = WiFiSettings.integer("operame_max_failures", 0, 1000, 10, T.config_max_failures);
     mqtt_topic  = WiFiSettings.string("operame_mqtt_topic", WiFiSettings.hostname, T.config_mqtt_topic);
     mqtt_interval = 1000UL * WiFiSettings.integer("operame_mqtt_interval", 10, 3600, 60, T.config_mqtt_interval);
-    mqtt_new  = WiFiSettings.checkbox("operame_mqtt_new", true, T.config_mqtt_new);
+    mqtt_new  = WiFiSettings.checkbox("operame_mqtt_new", false, T.config_mqtt_new);
 //    mqtt_template_enabled = WiFiSettings.checkbox("operame_mqtt_template_enabled", false, T.config_mqtt_template_enabled);
 //    mqtt_template = WiFiSettings.string("operame_mqtt_template", "{} PPM", T.config_mqtt_template);
 //    WiFiSettings.info(T.config_template_info);
@@ -560,20 +561,20 @@ void setup() {
 
     if (mqtt_enabled){
         mqtt.begin(server.c_str(), port, wificlient);
+        connect_mqtt();
+        
+        mqtt.loop();
+        mqtt.onMessage(messageHandler);
         if (mqtt_new){
-            mqtt.begin(server.c_str(), port, wificlient);
-            mqtt.onMessage(messageHandler);
-            mqtt.loop();
-            connect_mqtt();
             String message;
             const size_t capacity = JSON_OBJECT_SIZE(1);
             DynamicJsonDocument doc(capacity);
-            doc["value"] = true;
+            doc["value"] = mqtt_new;
             serializeJson(doc, message);
             retain("new/" + WiFiSettings.hostname, message);
-            
         }
         mqtt.subscribe("new/" + WiFiSettings.hostname);
+        
     }
 
 
@@ -608,6 +609,52 @@ bool checkbool(String s){
         return true;
     }
 }
+
+DynamicJsonDocument StringToJSONDocParser(String jsondata){
+    String jsonCounter = jsondata;
+    int teller = 1;
+
+    //kijk hoeveel variables er in de json zitten 
+    while(jsonCounter.indexOf(",")>-1){
+        teller++;
+        jsonCounter = jsonCounter.substring(jsonCounter.indexOf(",")+1);
+    }
+
+    //initialize JSONDocument met het aantal data
+    const size_t capacity = JSON_OBJECT_SIZE(2);
+    DynamicJsonDocument doc(capacity);
+
+    String cutted;
+    String indexname;
+    
+    //zet alle data met de juiste key value pairing in de DynamicJSONdoc
+    for(int i = 0; i < teller; i++){
+        cutted = jsondata.substring(jsondata.indexOf('\"')+1);
+        indexname = cutted.substring(0, cutted.indexOf('\"'));
+        cutted = cutted.substring(cutted.indexOf(":")+1);
+        String full_value = "";
+        if(cutted.indexOf(",") < cutted.indexOf("}") && cutted.indexOf(",") != -1 ){
+            full_value = cutted.substring(0,cutted.indexOf(","));
+            jsondata = cutted.substring(cutted.indexOf(",")+1);
+        }else{
+            full_value = cutted.substring(0,cutted.indexOf("}"));
+        }
+        indexname.trim();
+        full_value.trim();
+
+        if(full_value == "true" || full_value == "false"){
+            bool trueOrFalse = checkbool(full_value);
+            doc[indexname] = trueOrFalse;
+        }else{
+            doc[indexname] = full_value;
+        }
+    }
+
+    jsonCounter = teller;
+    return doc;
+}
+
+
 void loop() {
     static int co2;
     static float h;
@@ -615,19 +662,22 @@ void loop() {
     if(msgReceived == 1){
         delay(100);
         msgReceived = 0;
-        if( rcvdPayload.substring(2,7) = "value"){
-            mqtt_new = checkbool(rcvdPayload.substring(9,14));
-            display_big( rcvdPayload.substring(2,7),TFT_GREEN);
-        }
+        display_big("ok",TFT_GREEN);
+        delay(2000);
+        DynamicJsonDocument document = StringToJSONDocParser(rcvdPayload);
         
-        delay(5000);
+        mqtt_new = document["value"];
+            
+
+
+
     }
     if(mqtt_new){
         display_lines(T.setup_not_done, TFT_RED);
     } 
     every(1200) {
+        if (mqtt_new == false){
         // Read CO2, humidity and temperature 
-        if(mqtt_new == false){
             co2 = get_co2();
             h = dht.readHumidity();
             t = dht.readTemperature();
@@ -642,7 +692,7 @@ void loop() {
     }
 
     every(50) {
-        if(mqtt_new == false){
+        if (mqtt_new == false){
             if (co2 < 0) {
                 display_big(T.error_sensor, TFT_RED);
             } else if (co2 == 0) {
@@ -662,7 +712,7 @@ void loop() {
     }
 
     if (mqtt_enabled) {
-        if (mqtt_new){
+        if (mqtt_new == false){
             mqtt.loop();
             every(mqtt_interval) {
                 if (co2 <= 0) break;
