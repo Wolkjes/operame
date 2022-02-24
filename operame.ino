@@ -16,6 +16,7 @@
 #include <DHT.h>
 //#include <DHT_U.h>
 #include "Stream.h"
+#include <Preferences.h>
 
 
 #define LANGUAGE "nl"
@@ -86,6 +87,8 @@ String          rest_uri;
 String          rest_resource_id;
 String          rest_cert;
 bool            rest_enabled;
+
+Preferences preferences;
 
 int msgReceived = 0;
 String rcvdPayload;
@@ -558,6 +561,15 @@ void setup() {
 
     if (wifi_enabled) WiFiSettings.connect(false, 15);
 
+    preferences.begin("variables", false);
+
+    mqtt_lokaal = preferences.getString("lokaal", "");
+    mqtt_campus = preferences.getString("campus", "");
+    mqtt_new = preferences.getBool("new", true);
+    display_big(mqtt_lokaal, TFT_GREEN);
+    delay(2000);
+    preferences.end();
+    
     if (mqtt_enabled){
         mqtt.begin(server.c_str(), port, wificlient);
         mqtt.onMessage(messageHandler);
@@ -580,6 +592,8 @@ void setup() {
     if (rest_cert_enabled) wificlientsecure.setCACert(rest_cert.c_str());
 
     if (ota_enabled) setup_ota();
+
+
 }
 
 void post_rest_message(DynamicJsonDocument message, Stream& stream) {
@@ -633,6 +647,14 @@ void loop() {
             mqtt_lokaal = lokaalnaam;
             String campusnaam = test["campus"];
             mqtt_campus = campusnaam;
+
+            preferences.begin("variables", false);
+
+            preferences.putString("lokaal", mqtt_lokaal);
+            preferences.putString("campus", mqtt_campus);
+            preferences.putBool("new", mqtt_new);
+
+            preferences.end();
         };
     }
 
@@ -687,7 +709,7 @@ void loop() {
             doc["variable"] = "CO2";
             doc["value"] = co2;
             doc["unit"] = "ppm";
-            doc["sensor_id"] = 2;
+            doc["sensor_id"] = WiFiSettings.hostname;
             doc["lokaal"] = mqtt_lokaal;
             serializeJson(doc, message);
             retain(mqtt_lokaal + "/" + mqtt_topic, message);
