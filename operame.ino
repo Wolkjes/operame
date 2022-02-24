@@ -638,6 +638,7 @@ bool checkbool(String s){
 
 
 void loop() {
+    
     static int co2;
     static float h;
     static float t;
@@ -652,19 +653,26 @@ void loop() {
         display_big(keyString , TFT_BLUE);
         delay(2000);
         if(keyString == "new"){
+            preferences.begin("variables", false);
+            
             String stringwaarde = test["value"];
             bool booleanwaarde = checkbool(stringwaarde);
-            mqtt_new = booleanwaarde;
+            if(mqtt_new != booleanwaarde){
+                mqtt_new = booleanwaarde;
+                preferences.putBool("new", mqtt_new);
+            }
             String lokaalnaam = test["lokaal"];
-            mqtt_lokaal = lokaalnaam;
+            if(mqtt_lokaal != lokaalnaam){
+                mqtt_lokaal = lokaalnaam;
+                preferences.putString("lokaal", mqtt_lokaal);
+            }
+            
             String campusnaam = test["campus"];
-            mqtt_campus = campusnaam;
-
-            preferences.begin("variables", false);
-
-            preferences.putString("lokaal", mqtt_lokaal);
-            preferences.putString("campus", mqtt_campus);
-            preferences.putBool("new", mqtt_new);
+            if(mqtt_campus != campusnaam){
+                mqtt_campus = campusnaam;
+                preferences.putString("campus", mqtt_campus);
+            }
+            
 
             preferences.end();
         };
