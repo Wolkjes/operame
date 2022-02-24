@@ -566,9 +566,9 @@ void setup() {
     mqtt_lokaal = preferences.getString("lokaal", "");
     mqtt_campus = preferences.getString("campus", "");
     mqtt_new = preferences.getBool("new", true);
-    display_big(mqtt_lokaal, TFT_GREEN);
-    delay(2000);
-    preferences.end();
+    display_big(mqtt_lokaal,TFT_GREEN);
+    delay(1000);
+    
     
     if (mqtt_enabled){
         mqtt.begin(server.c_str(), port, wificlient);
@@ -584,6 +584,17 @@ void setup() {
             serializeJson(doc, message);
             retain("new/" + WiFiSettings.hostname, message);
             
+        }else{
+            mqtt.loop();
+            connect_mqtt();
+            String message;
+            const size_t capacity = JSON_OBJECT_SIZE(3);
+            DynamicJsonDocument doc(capacity);
+            doc["key"] = "new";
+            doc["value"] = false;
+            doc["lokaal"] = mqtt_lokaal.c_str();
+            serializeJson(doc, message);
+            retain("new/" + WiFiSettings.hostname, message);
         }
         mqtt.subscribe("new/" + WiFiSettings.hostname);
     }
@@ -593,6 +604,7 @@ void setup() {
 
     if (ota_enabled) setup_ota();
 
+    preferences.end();
 
 }
 
