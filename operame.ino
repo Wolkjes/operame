@@ -477,7 +477,7 @@ void setup() {
         str.replace("{ssid}", WiFiSettings.hostname);
     }
 
-    wifi_enabled  = WiFiSettings.checkbox("operame_wifi", false, T.config_wifi);
+    wifi_enabled  = WiFiSettings.checkbox("operame_wifi", true, T.config_wifi);
     ota_enabled   = WiFiSettings.checkbox("operame_ota", false, T.config_ota) && wifi_enabled;
 
     WiFiSettings.heading("CO2-niveaus");
@@ -488,37 +488,26 @@ void setup() {
     WiFiSettings.heading("MQTT");
     mqtt_lokaal = WiFiSettings.string("lokaal", 64, "", T.config_mqtt_lokaal);
     mqtt_naam = WiFiSettings.string("naam", 64, "", T.config_mqtt_naam);
-    mqtt_enabled  = WiFiSettings.checkbox("operame_mqtt", false, T.config_mqtt) && wifi_enabled;
+    mqtt_enabled  = WiFiSettings.checkbox("operame_mqtt", true, T.config_mqtt) && wifi_enabled;
     String server = WiFiSettings.string("mqtt_server", 64, "", T.config_mqtt_server);
     int port      = WiFiSettings.integer("mqtt_port", 0, 65535, 1883, T.config_mqtt_port);
     max_failures  = WiFiSettings.integer("operame_max_failures", 0, 1000, 10, T.config_max_failures);
-    mqtt_topic  = WiFiSettings.string("operame_mqtt_topic", WiFiSettings.hostname, T.config_mqtt_topic);
+    mqtt_topic  = "co2";
     mqtt_interval = 1000UL * WiFiSettings.integer("operame_mqtt_interval", 10, 3600, 60, T.config_mqtt_interval);
     mqtt_new  = WiFiSettings.checkbox("operame_mqtt_new", true, T.config_mqtt_new);
 //    mqtt_template_enabled = WiFiSettings.checkbox("operame_mqtt_template_enabled", false, T.config_mqtt_template_enabled);
 //    mqtt_template = WiFiSettings.string("operame_mqtt_template", "{} PPM", T.config_mqtt_template);
 //    WiFiSettings.info(T.config_template_info);
 
-    mqtt_temp_hum_enabled = WiFiSettings.checkbox("operame_mqtt_temp_hum", false, T.config_mqtt_temp_hum);
-    mqtt_topic_temperature  = WiFiSettings.string("operame_mqtt_topic_temperature", WiFiSettings.hostname + "/t", T.config_mqtt_topic_temperature);
-    mqtt_topic_humidity  = WiFiSettings.string("operame_mqtt_topic_humidity", WiFiSettings.hostname + "/h", T.config_mqtt_topic_humidity);
+    mqtt_temp_hum_enabled = WiFiSettings.checkbox("operame_mqtt_temp_hum", true, T.config_mqtt_temp_hum);
+    mqtt_topic_temperature  = "temp";
+    mqtt_topic_humidity  = "hum";
 //    mqtt_template_temp_hum_enabled = WiFiSettings.checkbox("operame_mqtt_template_temp_hum_enabled", false, T.config_mqtt_template_temp_hum_enabled);
 //    mqtt_template_temp = WiFiSettings.string("operame_mqtt_template_temp", "{} C", T.config_mqtt_template_temp);
 //    mqtt_template_hum = WiFiSettings.string("operame_mqtt_template_hum", "{} %R.H.", T.config_mqtt_template_hum);
     mqtt_user_pass_enabled = WiFiSettings.checkbox("operame_mqtt_user_pass", false, T.config_mqtt_user_pass);
     mqtt_username = WiFiSettings.string("operame_mqtt_username", 64, "", T.config_mqtt_username);
     mqtt_password = WiFiSettings.string("operame_mqtt_password", 64, "", T.config_mqtt_password);
-
-    WiFiSettings.heading("REST");
-    rest_enabled            = WiFiSettings.checkbox("operame_rest", false, T.config_rest) && wifi_enabled;
-    rest_domain             = WiFiSettings.string("rest_domain", 150, "", T.config_rest_domain);
-    rest_uri                = WiFiSettings.string("rest_uri", 600, "", T.config_rest_uri);
-    rest_port               = WiFiSettings.integer("rest_port", 0, 65535, 443, T.config_rest_port);
-    rest_interval           = 1000UL * WiFiSettings.integer("operame_rest_interval", 10, 3600, 60 * 5, T.config_rest_interval);
-    rest_resource_id        = WiFiSettings.string("rest_resource_id", 64, "", T.config_rest_resource_id);
-    bool rest_cert_enabled  = WiFiSettings.checkbox("operame_rest_cert", false, T.config_rest_cert_enabled);
-    rest_cert        = WiFiSettings.string("rest_cert", 6000, "", T.config_rest_cert);
-    rest_cert.replace("\\n", "\n");
     
 
     WiFiSettings.onConnect = [] {
@@ -566,41 +555,26 @@ void setup() {
     mqtt_lokaal = preferences.getString("lokaal", "");
     mqtt_campus = preferences.getString("campus", "");
     mqtt_new = preferences.getBool("new", true);
-    display_big(mqtt_lokaal,TFT_GREEN);
-    delay(1000);
+
     
     
     if (mqtt_enabled){
         mqtt.begin(server.c_str(), port, wificlient);
         mqtt.onMessage(messageHandler);
-        if (mqtt_new){
-            mqtt.loop();
-            connect_mqtt();
-            String message;
-            const size_t capacity = JSON_OBJECT_SIZE(2);
-            DynamicJsonDocument doc(capacity);
-            doc["key"] = "new";
-            doc["value"] = true;
-            serializeJson(doc, message);
-            retain("new/" + WiFiSettings.hostname, message);
-            
-        }else{
-            mqtt.loop();
-            connect_mqtt();
-            String message;
-            const size_t capacity = JSON_OBJECT_SIZE(3);
-            DynamicJsonDocument doc(capacity);
-            doc["key"] = "new";
-            doc["value"] = false;
-            doc["lokaal"] = mqtt_lokaal.c_str();
-            serializeJson(doc, message);
-            retain("new/" + WiFiSettings.hostname, message);
-        }
+        mqtt.loop();
+        connect_mqtt();
+        String message;
+        const size_t capacity = JSON_OBJECT_SIZE(3);
+        DynamicJsonDocument doc(capacity);
+        doc["key"] = "new";
+        doc["value"] = mqtt_new;
+        doc["lokaal"] = mqtt_lokaal.c_str();
+        serializeJson(doc, message);
+        retain("new/" + WiFiSettings.hostname, message);
         mqtt.subscribe("new/" + WiFiSettings.hostname);
     }
 
 
-    if (rest_cert_enabled) wificlientsecure.setCACert(rest_cert.c_str());
 
     if (ota_enabled) setup_ota();
 
@@ -650,11 +624,10 @@ void loop() {
         DynamicJsonDocument test(1024);
         deserializeJson(test, rcvdPayload);
         String keyString = test["key"];
-        display_big(keyString , TFT_BLUE);
+        display_big(mqtt_lokaal , TFT_BLUE);
         delay(2000);
         if(keyString == "new"){
             preferences.begin("variables", false);
-            
             String stringwaarde = test["value"];
             bool booleanwaarde = checkbool(stringwaarde);
             if(mqtt_new != booleanwaarde){
@@ -729,8 +702,8 @@ void loop() {
             doc["variable"] = "CO2";
             doc["value"] = co2;
             doc["unit"] = "ppm";
-            doc["sensor_id"] = WiFiSettings.hostname;
-            doc["lokaal"] = mqtt_lokaal;
+            doc["sensor_id"] = WiFiSettings.hostname.c_str();
+            doc["lokaal"] = mqtt_lokaal.c_str();
             serializeJson(doc, message);
             retain(mqtt_lokaal + "/" + mqtt_topic, message);
 
@@ -738,11 +711,12 @@ void loop() {
                 //temperature
                 if(!isnan(t)) {
                     String message;
-                    const size_t capacity = JSON_OBJECT_SIZE(3);
+                    const size_t capacity = JSON_OBJECT_SIZE(4);
                     DynamicJsonDocument doc(capacity);
                     doc["variable"] = "temperature";
                     doc["value"] = t;
                     doc["unit"] = "C";
+                    doc["sensor_id"] = WiFiSettings.hostname.c_str();
                     serializeJson(doc, message);
                     retain(mqtt_lokaal + "/" + mqtt_topic_temperature, message);
                 }
@@ -750,11 +724,12 @@ void loop() {
                 //humidity
                 if(!isnan(h)) {
                     String message;
-                    const size_t capacity = JSON_OBJECT_SIZE(3);
+                    const size_t capacity = JSON_OBJECT_SIZE(4);
                     DynamicJsonDocument doc(capacity);
                     doc["variable"] = "humidity";
                     doc["value"] = h;
                     doc["unit"] = "%R.H.";
+                    doc["sensor_id"] = WiFiSettings.hostname.c_str();
                     serializeJson(doc, message);
                     retain(mqtt_lokaal + "/" + mqtt_topic_humidity, message);
                 }
