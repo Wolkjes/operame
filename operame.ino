@@ -619,7 +619,7 @@ bool checkbool(String s){
 
 
 void loop() {
-    
+    connect_mqtt();
     static int co2;
     static float h;
     static float t;
