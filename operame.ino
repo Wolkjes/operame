@@ -555,8 +555,12 @@ void setup() {
     mqtt_lokaal = preferences.getString("lokaal", "");
     mqtt_campus = preferences.getString("campus", "");
     mqtt_new = preferences.getBool("new", true);
+    co2_warning = preferences.getInt("warning", 700);
+    co2_blink = preferences.getInt("blinking", 800);
+    co2_critical = preferences.getInt("critical", 800);
 
-    
+    display_big(mqtt_campus , TFT_BLUE);
+    delay(2000);
     
     if (mqtt_enabled){
         mqtt.begin(server.c_str(), port, wificlient);
@@ -569,9 +573,11 @@ void setup() {
         doc["key"] = "new";
         doc["value"] = mqtt_new;
         doc["lokaal"] = mqtt_lokaal.c_str();
+        doc["campus"] = mqtt_campus.c_str();
         serializeJson(doc, message);
         retain("new/" + WiFiSettings.hostname, message);
         mqtt.subscribe("new/" + WiFiSettings.hostname);
+        mqtt.subscribe(mqtt_campus + "/threshold");
     }
 
 
@@ -598,6 +604,7 @@ void post_rest_message(DynamicJsonDocument message, Stream& stream) {
 void messageHandler(String &topic, String &payload) {
     msgReceived = 1;
     rcvdPayload = payload;
+
 }
 
 #define every(t) for (static unsigned long _lasttime; (unsigned long)((unsigned long)millis() - _lasttime) >= (t); _lasttime = millis())
@@ -624,8 +631,6 @@ void loop() {
         DynamicJsonDocument test(1024);
         deserializeJson(test, rcvdPayload);
         String keyString = test["key"];
-        display_big(mqtt_lokaal , TFT_BLUE);
-        delay(2000);
         if(keyString == "new"){
             preferences.begin("variables", false);
             String stringwaarde = test["value"];
@@ -635,17 +640,36 @@ void loop() {
                 preferences.putBool("new", mqtt_new);
             }
             String lokaalnaam = test["lokaal"];
-            if(mqtt_lokaal != lokaalnaam){
+
+            if(mqtt_lokaal != lokaalnaam && lokaalnaam != "null"){
                 mqtt_lokaal = lokaalnaam;
                 preferences.putString("lokaal", mqtt_lokaal);
             }
-            
+                
             String campusnaam = test["campus"];
-            if(mqtt_campus != campusnaam){
+            if(mqtt_campus != campusnaam && campusnaam != "null"){
+                mqtt.unsubscribe(mqtt_campus + "/threshold");
                 mqtt_campus = campusnaam;
                 preferences.putString("campus", mqtt_campus);
+                mqtt.subscribe(mqtt_campus + "/threshold");
             }
-            
+            preferences.end();
+        };
+        if(keyString == "threshold"){
+            preferences.begin("variables", false);
+            int warning = test["warning"];
+            if(warning != co2_warning){
+                co2_warning = warning;
+                preferences.putInt("warning", co2_warning);
+            }
+
+            int critical = test["critical"];
+            if(critical != co2_critical){
+                co2_blink = critical;
+                co2_critical = critical;
+                preferences.putInt("blinking", co2_blink);
+                preferences.putInt("critical", co2_critical);
+            }
 
             preferences.end();
         };
@@ -705,7 +729,7 @@ void loop() {
             doc["sensor_id"] = WiFiSettings.hostname.c_str();
             doc["lokaal"] = mqtt_lokaal.c_str();
             serializeJson(doc, message);
-            retain(mqtt_lokaal + "/" + mqtt_topic, message);
+            retain(mqtt_campus + "/" + mqtt_lokaal + "/" + mqtt_topic, message);
 
             if(mqtt_temp_hum_enabled) {
                 //temperature
@@ -718,7 +742,7 @@ void loop() {
                     doc["unit"] = "C";
                     doc["sensor_id"] = WiFiSettings.hostname.c_str();
                     serializeJson(doc, message);
-                    retain(mqtt_lokaal + "/" + mqtt_topic_temperature, message);
+                    retain(mqtt_campus + "/" + mqtt_lokaal + "/" + mqtt_topic_temperature, message);
                 }
 
                 //humidity
@@ -731,7 +755,7 @@ void loop() {
                     doc["unit"] = "%R.H.";
                     doc["sensor_id"] = WiFiSettings.hostname.c_str();
                     serializeJson(doc, message);
-                    retain(mqtt_lokaal + "/" + mqtt_topic_humidity, message);
+                    retain(mqtt_campus + "/" + mqtt_lokaal + "/" + mqtt_topic_humidity, message);
                 }
             }
         }
