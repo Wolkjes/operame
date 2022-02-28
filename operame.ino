@@ -619,10 +619,10 @@ bool checkbool(String s){
 
 
 void loop() {
-    connect_mqtt();
     static int co2;
     static float h;
     static float t;
+    connect_mqtt();
     mqtt.onMessage(messageHandler);
     if(msgReceived == 1){
         delay(100);
@@ -725,9 +725,9 @@ void loop() {
             DynamicJsonDocument doc(capacity);
             doc["variable"] = "CO2";
             doc["value"] = co2;
-            doc["unit"] = "ppm";
+            doc["warning"] = co2_warning;
+            doc["critical"] = co2_critical;
             doc["sensor_id"] = WiFiSettings.hostname.c_str();
-            doc["lokaal"] = mqtt_lokaal.c_str();
             serializeJson(doc, message);
             retain(mqtt_campus + "/" + mqtt_lokaal + "/" + mqtt_topic, message);
 
