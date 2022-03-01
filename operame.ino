@@ -578,6 +578,7 @@ void setup() {
         retain("new/" + WiFiSettings.hostname, message);
         mqtt.subscribe("new/" + WiFiSettings.hostname);
         mqtt.subscribe(mqtt_campus + "/threshold");
+        mqtt.subscribe(mqtt_campus + "/changename");
     }
 
 
@@ -649,9 +650,11 @@ void loop() {
             String campusnaam = test["campus"];
             if(mqtt_campus != campusnaam && campusnaam != "null"){
                 mqtt.unsubscribe(mqtt_campus + "/threshold");
+                mqtt.unsubscribe(mqtt_campus + "/changename");
                 mqtt_campus = campusnaam;
                 preferences.putString("campus", mqtt_campus);
                 mqtt.subscribe(mqtt_campus + "/threshold");
+                mqtt.subscribe(mqtt_campus + "/changename");
             }
             preferences.end();
         };
@@ -673,6 +676,23 @@ void loop() {
 
             preferences.end();
         };
+
+        if(keyString == "name"){
+            preferences.begin("variables", false);
+
+            String campusnaam = test["name"];
+            if(mqtt_campus != campusnaam && campusnaam != "null"){
+                mqtt.unsubscribe(mqtt_campus + "/threshold");
+                mqtt.unsubscribe(mqtt_campus + "/changename");
+                mqtt_campus = campusnaam;
+                preferences.putString("campus", mqtt_campus);
+                mqtt.subscribe(mqtt_campus + "/threshold");
+                mqtt.subscribe(mqtt_campus + "/changename");
+            }
+            display_big(mqtt_campus, TFT_GREEN);
+            delay(1000);
+            preferences.end();
+        }
     }
 
     delay(100);
