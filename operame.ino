@@ -679,7 +679,6 @@ void loop() {
 
         if(keyString == "name"){
             preferences.begin("variables", false);
-
             String campusnaam = test["name"];
             if(mqtt_campus != campusnaam && campusnaam != "null"){
                 mqtt.unsubscribe(mqtt_campus + "/threshold");
@@ -689,8 +688,6 @@ void loop() {
                 mqtt.subscribe(mqtt_campus + "/threshold");
                 mqtt.subscribe(mqtt_campus + "/changename");
             }
-            display_big(mqtt_campus, TFT_GREEN);
-            delay(1000);
             preferences.end();
         }
     }
