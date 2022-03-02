@@ -579,6 +579,7 @@ void setup() {
         mqtt.subscribe("new/" + WiFiSettings.hostname);
         mqtt.subscribe(mqtt_campus + "/threshold");
         mqtt.subscribe(mqtt_campus + "/changename");
+        mqtt.subscribe(mqtt_campus + "/" + mqtt_lokaal + "/new");
     }
 
 
@@ -633,6 +634,8 @@ void loop() {
         deserializeJson(test, rcvdPayload);
         String keyString = test["key"];
         if(keyString == "new"){
+            display_big(keyString,TFT_GREEN);
+            delay(1000);
             preferences.begin("variables", false);
             String stringwaarde = test["value"];
             bool booleanwaarde = checkbool(stringwaarde);
@@ -641,20 +644,28 @@ void loop() {
                 preferences.putBool("new", mqtt_new);
             }
             String lokaalnaam = test["lokaal"];
-
+            String campusnaam = test["campus"];
             if(mqtt_lokaal != lokaalnaam && lokaalnaam != "null"){
+                mqtt.unsubscribe(mqtt_campus + "/"+ mqtt_lokaal + "/new");
                 mqtt_lokaal = lokaalnaam;
                 preferences.putString("lokaal", mqtt_lokaal);
+                if(mqtt_campus != campusnaam && campusnaam != "null"){
+                    mqtt.subscribe(campusnaam + "/"+ mqtt_lokaal + "/new");
+                }else{
+                    mqtt.subscribe(mqtt_campus + "/"+ mqtt_lokaal + "/new");
+                }
             }
                 
-            String campusnaam = test["campus"];
+            
             if(mqtt_campus != campusnaam && campusnaam != "null"){
                 mqtt.unsubscribe(mqtt_campus + "/threshold");
                 mqtt.unsubscribe(mqtt_campus + "/changename");
+                mqtt.unsubscribe(mqtt_campus + "/"+ mqtt_lokaal + "/new");
                 mqtt_campus = campusnaam;
                 preferences.putString("campus", mqtt_campus);
                 mqtt.subscribe(mqtt_campus + "/threshold");
                 mqtt.subscribe(mqtt_campus + "/changename");
+                mqtt.subscribe(mqtt_campus + "/"+ mqtt_lokaal + "/new");
             }
             preferences.end();
         };
