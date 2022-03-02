@@ -580,6 +580,7 @@ void setup() {
         mqtt.subscribe(mqtt_campus + "/threshold");
         mqtt.subscribe(mqtt_campus + "/changename");
         mqtt.subscribe(mqtt_campus + "/" + mqtt_lokaal + "/new");
+        mqtt.subscribe(mqtt_campus + "/new");
     }
 
 
@@ -634,8 +635,6 @@ void loop() {
         deserializeJson(test, rcvdPayload);
         String keyString = test["key"];
         if(keyString == "new"){
-            display_big(keyString,TFT_GREEN);
-            delay(1000);
             preferences.begin("variables", false);
             String stringwaarde = test["value"];
             bool booleanwaarde = checkbool(stringwaarde);
@@ -660,12 +659,14 @@ void loop() {
             if(mqtt_campus != campusnaam && campusnaam != "null"){
                 mqtt.unsubscribe(mqtt_campus + "/threshold");
                 mqtt.unsubscribe(mqtt_campus + "/changename");
+                mqtt.unsubscribe(mqtt_campus + "/new");
                 mqtt.unsubscribe(mqtt_campus + "/"+ mqtt_lokaal + "/new");
                 mqtt_campus = campusnaam;
                 preferences.putString("campus", mqtt_campus);
                 mqtt.subscribe(mqtt_campus + "/threshold");
                 mqtt.subscribe(mqtt_campus + "/changename");
                 mqtt.subscribe(mqtt_campus + "/"+ mqtt_lokaal + "/new");
+                mqtt.subscribe(mqtt_campus + "/new");
             }
             preferences.end();
         };
