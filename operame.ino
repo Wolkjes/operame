@@ -95,6 +95,7 @@ String rcvdPayload;
 char sndPayloadOff[512];
 char sndPayloadOn[512];
 bool newSensor = true;
+int teller= 0;
 
 void messageHandler(String &topic, String &payload);
 
@@ -584,7 +585,7 @@ void setup() {
         }
     }
 
-
+    teller = 1;
 
     if (ota_enabled) setup_ota();
 
@@ -630,14 +631,32 @@ void loop() {
     mqtt.onMessage(messageHandler);
 
     if(msgReceived == 1){
+        preferences.begin("variables", false);
         delay(100);
         msgReceived = 0;
 
         DynamicJsonDocument test(1024);
         deserializeJson(test, rcvdPayload);
         String keyString = test["key"];
+        display_big(keyString,TFT_BLUE);
+        delay(2000);
+        if(keyString == "delete"){
+            String stringwaarde = test["value"];
+            bool booleanwaarde = checkbool(stringwaarde);
+            if(mqtt_new != booleanwaarde){
+                mqtt_new = booleanwaarde;
+                preferences.putBool("new", mqtt_new);
+                String mes;
+                const size_t cap = JSON_OBJECT_SIZE(2);
+                DynamicJsonDocument document(cap);
+                document["key"] = "new";
+                document["value"] =  mqtt_new;
+                serializeJson(document, mes);
+                retain("new/" + WiFiSettings.hostname, mes);
+            }
+        }
         if(keyString == "new"){
-            preferences.begin("variables", false);
+            
             String stringwaarde = test["value"];
             bool booleanwaarde = checkbool(stringwaarde);
             if(mqtt_new != booleanwaarde){
@@ -694,7 +713,7 @@ void loop() {
                 preferences.putInt("critical", co2_critical);
             }
 
-            preferences.end();
+            
             if(mqtt_new == false){
                 String mes;
                 const size_t cap = JSON_OBJECT_SIZE(1);
@@ -702,7 +721,7 @@ void loop() {
                 document["key"] = "online";
                 serializeJson(document, mes);
                 retain(mqtt_campus + "/" + mqtt_lokaal + "/offline", mes);
-                preferences.end();
+                
             }
         };
 
@@ -717,8 +736,8 @@ void loop() {
                 mqtt.subscribe(mqtt_campus + "/threshold");
                 mqtt.subscribe(mqtt_campus + "/changename");
             }
-            preferences.end();
         }
+        preferences.end();
     }
 
     delay(100);
@@ -740,6 +759,7 @@ void loop() {
             Serial.print(h);
             Serial.println();
         }
+
     }
     if(mqtt_new == false){
         every(50) {
@@ -834,10 +854,12 @@ void loop() {
 
     if (ota_enabled) ArduinoOTA.handle();
     check_buttons();
-
-    mqtt.subscribe("new/" + WiFiSettings.hostname);
-    mqtt.subscribe(mqtt_campus + "/threshold");
-    mqtt.subscribe(mqtt_campus + "/changename");
-    mqtt.subscribe(mqtt_campus + "/" + mqtt_lokaal + "/new");
-    mqtt.subscribe(mqtt_campus + "/new");
+    if (teller == 1){
+        mqtt.subscribe("new/" + WiFiSettings.hostname);
+        mqtt.subscribe(mqtt_campus + "/threshold");
+        mqtt.subscribe(mqtt_campus + "/changename");
+        mqtt.subscribe(mqtt_campus + "/" + mqtt_lokaal + "/new");
+        mqtt.subscribe(mqtt_campus + "/new");
+        teller++;
+    }
 }
