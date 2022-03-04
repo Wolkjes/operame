@@ -94,6 +94,7 @@ int msgReceived = 0;
 String rcvdPayload;
 char sndPayloadOff[512];
 char sndPayloadOn[512];
+bool newSensor = true;
 
 void messageHandler(String &topic, String &payload);
 
@@ -558,6 +559,7 @@ void setup() {
     co2_warning = preferences.getInt("warning", 700);
     co2_blink = preferences.getInt("blinking", 800);
     co2_critical = preferences.getInt("critical", 800);
+    newSensor = preferences.getBool("newSensor", true);
 
     display_big(mqtt_campus , TFT_BLUE);
     delay(2000);
@@ -567,20 +569,19 @@ void setup() {
         mqtt.onMessage(messageHandler);
         mqtt.loop();
         connect_mqtt();
-        String message;
-        const size_t capacity = JSON_OBJECT_SIZE(3);
-        DynamicJsonDocument doc(capacity);
-        doc["key"] = "new";
-        doc["value"] = mqtt_new;
-        doc["lokaal"] = mqtt_lokaal.c_str();
-        doc["campus"] = mqtt_campus.c_str();
-        serializeJson(doc, message);
-        retain("new/" + WiFiSettings.hostname, message);
-        mqtt.subscribe("new/" + WiFiSettings.hostname);
-        mqtt.subscribe(mqtt_campus + "/threshold");
-        mqtt.subscribe(mqtt_campus + "/changename");
-        mqtt.subscribe(mqtt_campus + "/" + mqtt_lokaal + "/new");
-        mqtt.subscribe(mqtt_campus + "/new");
+        if(newSensor == true){
+            String message;
+            const size_t capacity = JSON_OBJECT_SIZE(4);
+            DynamicJsonDocument doc(capacity);
+            doc["key"] = "new";
+            doc["value"] = mqtt_new;
+            doc["lokaal"] = mqtt_lokaal.c_str();
+            doc["campus"] = mqtt_campus.c_str();
+            serializeJson(doc, message);
+            retain("new/" + WiFiSettings.hostname, message);
+            newSensor = false;
+            preferences.putBool("newSensor", false);
+        }
     }
 
 
@@ -627,6 +628,7 @@ void loop() {
     static float t;
     connect_mqtt();
     mqtt.onMessage(messageHandler);
+
     if(msgReceived == 1){
         delay(100);
         msgReceived = 0;
@@ -641,6 +643,13 @@ void loop() {
             if(mqtt_new != booleanwaarde){
                 mqtt_new = booleanwaarde;
                 preferences.putBool("new", mqtt_new);
+                String mes;
+                const size_t cap = JSON_OBJECT_SIZE(2);
+                DynamicJsonDocument document(cap);
+                document["key"] = "new";
+                document["value"] =  mqtt_new;
+                serializeJson(document, mes);
+                retain("new/" + WiFiSettings.hostname, mes);
             }
             String lokaalnaam = test["lokaal"];
             String campusnaam = test["campus"];
@@ -822,4 +831,10 @@ void loop() {
 
     if (ota_enabled) ArduinoOTA.handle();
     check_buttons();
+
+    mqtt.subscribe("new/" + WiFiSettings.hostname);
+    mqtt.subscribe(mqtt_campus + "/threshold");
+    mqtt.subscribe(mqtt_campus + "/changename");
+    mqtt.subscribe(mqtt_campus + "/" + mqtt_lokaal + "/new");
+    mqtt.subscribe(mqtt_campus + "/new");
 }
