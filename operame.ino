@@ -677,7 +677,6 @@ void loop() {
                 mqtt.subscribe(mqtt_campus + "/"+ mqtt_lokaal + "/new");
                 mqtt.subscribe(mqtt_campus + "/new");
             }
-            preferences.end();
         };
         if(keyString == "threshold"){
             preferences.begin("variables", false);
@@ -696,6 +695,15 @@ void loop() {
             }
 
             preferences.end();
+            if(mqtt_new == false){
+                String mes;
+                const size_t cap = JSON_OBJECT_SIZE(1);
+                DynamicJsonDocument document(cap);
+                document["key"] = "online";
+                serializeJson(document, mes);
+                retain(mqtt_campus + "/" + mqtt_lokaal + "/offline", mes);
+                preferences.end();
+            }
         };
 
         if(keyString == "name"){
@@ -768,12 +776,7 @@ void loop() {
             doc["sensor_id"] = WiFiSettings.hostname.c_str();
             serializeJson(doc, message);
             retain(mqtt_campus + "/" + mqtt_lokaal + "/" + mqtt_topic, message);
-            String mes;
-            const size_t cap = JSON_OBJECT_SIZE(1);
-            DynamicJsonDocument document(cap);
-            document["key"] = "online";
-            serializeJson(document, mes);
-            retain(mqtt_campus + "/" + mqtt_lokaal + "/offline", mes);
+
 
             if(mqtt_temp_hum_enabled) {
                 //temperature
