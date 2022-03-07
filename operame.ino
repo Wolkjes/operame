@@ -561,9 +561,6 @@ void setup() {
     co2_blink = preferences.getInt("blinking", 800);
     co2_critical = preferences.getInt("critical", 800);
     newSensor = preferences.getBool("newSensor", true);
-
-    display_big(mqtt_campus , TFT_BLUE);
-    delay(2000);
     
     if (mqtt_enabled){
         mqtt.begin(server.c_str(), port, wificlient);
@@ -583,6 +580,15 @@ void setup() {
             newSensor = false;
             preferences.putBool("newSensor", false);
         }
+        if(mqtt_new == true){
+            String mes;
+            const size_t cap = JSON_OBJECT_SIZE(2);
+            DynamicJsonDocument document(cap);
+            document["key"] = "new";
+            document["value"] = true;
+            serializeJson(document, mes);
+            retain("new/" + WiFiSettings.hostname, mes);
+        }
     }
 
     teller = 1;
@@ -590,6 +596,11 @@ void setup() {
     if (ota_enabled) setup_ota();
 
     preferences.end();
+
+    display_lines({"Campus:",mqtt_campus},TFT_BLUE);
+    delay(2000);
+    display_lines({"lokaal:",mqtt_lokaal},TFT_BLUE);
+    delay(2000);
 
 }
 
@@ -638,8 +649,6 @@ void loop() {
         DynamicJsonDocument test(1024);
         deserializeJson(test, rcvdPayload);
         String keyString = test["key"];
-        display_big(keyString,TFT_BLUE);
-        delay(2000);
         if(keyString == "delete"){
             String stringwaarde = test["value"];
             bool booleanwaarde = checkbool(stringwaarde);
@@ -681,6 +690,8 @@ void loop() {
                 }else{
                     mqtt.subscribe(mqtt_campus + "/"+ mqtt_lokaal + "/new");
                 }
+                display_big(mqtt_lokaal,TFT_BLUE);
+                delay(2000);
             }
                 
             
@@ -695,6 +706,8 @@ void loop() {
                 mqtt.subscribe(mqtt_campus + "/changename");
                 mqtt.subscribe(mqtt_campus + "/"+ mqtt_lokaal + "/new");
                 mqtt.subscribe(mqtt_campus + "/new");
+                display_big(mqtt_campus,TFT_BLUE);
+                delay(2000);
             }
         };
         if(keyString == "threshold"){
@@ -735,8 +748,20 @@ void loop() {
                 preferences.putString("campus", mqtt_campus);
                 mqtt.subscribe(mqtt_campus + "/threshold");
                 mqtt.subscribe(mqtt_campus + "/changename");
+                display_big(mqtt_campus,TFT_BLUE);
+                delay(2000);
             }
         }
+        if(mqtt_new == true){
+            String mes;
+            const size_t cap = JSON_OBJECT_SIZE(2);
+            DynamicJsonDocument document(cap);
+            document["key"] = "new";
+            document["value"] = true;
+            serializeJson(document, mes);
+            retain("new/" + WiFiSettings.hostname, mes);
+        }
+
         preferences.end();
     }
 
