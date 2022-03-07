@@ -632,7 +632,17 @@ bool checkbool(String s){
     }
 }
 
-
+void checktrue(){
+    if(mqtt_new == true){
+        String mes;
+        const size_t cap = JSON_OBJECT_SIZE(2);
+        DynamicJsonDocument document(cap);
+        document["key"] = "new";
+        document["value"] = true;
+        serializeJson(document, mes);
+        retain("new/" + WiFiSettings.hostname, mes);
+    }
+}
 
 void loop() {
     static int co2;
@@ -692,6 +702,7 @@ void loop() {
                 }
                 display_big(mqtt_lokaal,TFT_BLUE);
                 delay(2000);
+                checktrue();
             }
                 
             
@@ -708,6 +719,7 @@ void loop() {
                 mqtt.subscribe(mqtt_campus + "/new");
                 display_big(mqtt_campus,TFT_BLUE);
                 delay(2000);
+                checktrue();
             }
         };
         if(keyString == "threshold"){
@@ -734,7 +746,6 @@ void loop() {
                 document["key"] = "online";
                 serializeJson(document, mes);
                 retain(mqtt_campus + "/" + mqtt_lokaal + "/offline", mes);
-                
             }
         };
 
@@ -751,16 +762,9 @@ void loop() {
                 display_big(mqtt_campus,TFT_BLUE);
                 delay(2000);
             }
+            checktrue();
         }
-        if(mqtt_new == true){
-            String mes;
-            const size_t cap = JSON_OBJECT_SIZE(2);
-            DynamicJsonDocument document(cap);
-            document["key"] = "new";
-            document["value"] = true;
-            serializeJson(document, mes);
-            retain("new/" + WiFiSettings.hostname, mes);
-        }
+
 
         preferences.end();
     }
