@@ -1,6 +1,6 @@
 # Operame
 
-Dit is de broncode van de firmware voor de [ControlCO2-meter](https://controlco2.space), operame project origineel gestart door RevSpace. Hier is op verder bebouwd door studenten van UCLL die dit project kregen als eindwerk. De inhoud van deze repository dient om de juist code op het sensor te zetten. Dat is ook waarom we enkel omschrijven hoe je de code op de sensor zet. Indien je op zoek bent naar hoe je de sensor instelt bekijk dan [Hier](https://github.com/Wolkjes/frontend) hoe dit moet.
+Dit is de broncode van de firmware voor de [ControlCO2-meter](https://controlco2.space), operame project origineel gestart door RevSpace. Hier is op verder bebouwd door studenten van UCLL die dit project kregen als eindwerk. De inhoud van deze repository dient enkel om de juist code op het sensor te zetten. Dat is ook waarom we enkel omschrijven hoe je de code op de sensor zet. Indien je op zoek bent naar hoe je de sensor instelt bekijk dan [Hier](https://github.com/Wolkjes/frontend) hoe dit moet.
 
 ## Language
 
