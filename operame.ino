@@ -672,6 +672,7 @@ void loop() {
                 serializeJson(document, mes);
                 retain("new/" + WiFiSettings.hostname, mes);
             }
+            checktrue();
         }
         if(keyString == "new"){
             
