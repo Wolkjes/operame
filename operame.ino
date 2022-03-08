@@ -591,7 +591,6 @@ void setup() {
         }
     }
 
-    teller = 1;
 
     if (ota_enabled) setup_ota();
 
@@ -691,7 +690,7 @@ void loop() {
             }
             String lokaalnaam = test["lokaal"];
             String campusnaam = test["campus"];
-            if(mqtt_lokaal != lokaalnaam && lokaalnaam != "null"){
+            if(mqtt_lokaal != lokaalnaam && lokaalnaam != "null" && lokaalnaam !=""){
                 mqtt.unsubscribe(mqtt_campus + "/"+ mqtt_lokaal + "/new");
                 mqtt_lokaal = lokaalnaam;
                 preferences.putString("lokaal", mqtt_lokaal);
@@ -750,17 +749,18 @@ void loop() {
         };
 
         if(keyString == "name"){
+
             preferences.begin("variables", false);
             String campusnaam = test["name"];
             if(mqtt_campus != campusnaam && campusnaam != "null"){
+                display_lines({"name of the", "campus has been", "changed to:", campusnaam}, TFT_CYAN);
+                delay(2000);
                 mqtt.unsubscribe(mqtt_campus + "/threshold");
                 mqtt.unsubscribe(mqtt_campus + "/changename");
                 mqtt_campus = campusnaam;
                 preferences.putString("campus", mqtt_campus);
                 mqtt.subscribe(mqtt_campus + "/threshold");
                 mqtt.subscribe(mqtt_campus + "/changename");
-                display_big(mqtt_campus,TFT_BLUE);
-                delay(2000);
             }
             checktrue();
         }
@@ -883,12 +883,13 @@ void loop() {
 
     if (ota_enabled) ArduinoOTA.handle();
     check_buttons();
-    if (teller == 1){
-        mqtt.subscribe("new/" + WiFiSettings.hostname);
+    if (teller == 0){
         mqtt.subscribe(mqtt_campus + "/threshold");
-        mqtt.subscribe(mqtt_campus + "/changename");
         mqtt.subscribe(mqtt_campus + "/" + mqtt_lokaal + "/new");
         mqtt.subscribe(mqtt_campus + "/new");
+        mqtt.subscribe(mqtt_campus + "/changename");
+        mqtt.subscribe("new/" + WiFiSettings.hostname);
         teller++;
     }
+    
 }
