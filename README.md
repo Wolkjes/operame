@@ -37,3 +37,36 @@ https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers
 -bordje connecteren en in devices checken of driver er is anders cp210x driver van silicon lans installeren.
 
 -dan in platformio.ini upload_port en flags commenten. zoek port dan automatisch
+
+
+## Ervaring van een mac gebruiker (m1 en intel)
+-visual studio code installeren
+
+-platformio extensie geïnstalleerd in VS code.
+<ul>
+    <li>platformio extensie geïnstalleerd in VS code.</li>
+    <li>git clone deze repository</li>
+    <li>bordje connecteren en kijken of hij kan verbinen</li>
+    <li>Werkte niet: had niet gezien dat er een driver link was in deze readme</li>
+    <li>Uiteindelijk deze driver gevonden die werkt: <a href="https://dsc.cloud/d5c41b/CH9102_Mac_Driver_2.zip">https://dsc.cloud/d5c41b/CH9102_Mac_Driver_2.zip</a></li>
+    <li>Voeg een default upload_port toe bij de platoformio.ini file <img src="readme.png"/>
+    </li>
+</ul>
+
+
+## Add sensor
+
+First update your sensor to the latest version: [https://github.com/Wolkjes/operame]
+
+Then connect your sensor to the network and enter the correct IP-address:
+<ol>
+    <li>Turn the sensor on</li>
+    <li>The sensor makes a wifi connection, connect to this with another device</li>
+    <li>Then you will get a message to login on this wifi connection, open this and the configuration page will open in the browser</li>
+    <li>Select the correct SSID of the password and enter the password of that SSID</li>
+    <li>Enter the correct ip-address in the MQTT ip address box. This is the ip where you run all the server files (docker-compose file)</li>
+    <li>Go to the bottom of the page and click on Save</li>
+    <li>Then restart your sensor by clicking restart at the top of the page</li>
+</ol>
+
+
