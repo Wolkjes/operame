@@ -661,7 +661,7 @@ void loop() {
         if(keyString == "delete"){
             String stringwaarde = test["value"];
             bool booleanwaarde = checkbool(stringwaarde);
-            if(mqtt_new != booleanwaarde){
+            if(booleanwaarde == true){
                 mqtt_new = booleanwaarde;
                 preferences.putBool("new", mqtt_new);
                 String mes;
