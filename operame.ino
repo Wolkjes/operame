@@ -758,10 +758,21 @@ void loop() {
                 delay(2000);
                 mqtt.unsubscribe(mqtt_campus + "/threshold");
                 mqtt.unsubscribe(mqtt_campus + "/changename");
+                mqtt.unsubscribe(mqtt_campus + "/new");
+                mqtt.unsubscribe(mqtt_campus + "/"+ mqtt_lokaal + "/new");
                 mqtt_campus = campusnaam;
+                String mes;
+                const size_t cap = JSON_OBJECT_SIZE(2);
+                DynamicJsonDocument document(cap);
+                document["key"] = "delete";
+                document["value"] = "false";
+                serializeJson(document, mes);
+                retain(mqtt_campus + "/new", mes);
                 preferences.putString("campus", mqtt_campus);
                 mqtt.subscribe(mqtt_campus + "/threshold");
                 mqtt.subscribe(mqtt_campus + "/changename");
+                mqtt.subscribe(mqtt_campus + "/"+ mqtt_lokaal + "/new");
+                mqtt.subscribe(mqtt_campus + "/new");
             }
             checktrue();
         }
